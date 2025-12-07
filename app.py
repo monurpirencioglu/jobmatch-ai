@@ -1,20 +1,20 @@
 import streamlit as st
-from google import genai
+import google.generativeai as genai
 import pypdf
 from docx import Document
 from PIL import Image
 import io
-import os
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="JobMatch Pro", page_icon="💼", layout="wide")
 
-# --- GÜVENLİK VE API ANAHTARI ---
-# Anahtarı Streamlit Secrets (Gizli Kasa) üzerinden alıyoruz
+# --- GÜVENLİK VE API KURULUMU ---
 try:
-    API_KEY = st.secrets["GEMINI_API_KEY"]
-except:
-    st.error("⚠️ API Anahtarı bulunamadı! Lütfen Streamlit Secrets ayarlarını yapın.")
+    # Secrets'tan anahtarı al (Adını GOOGLE_API_KEY olarak eşitledik)
+    api_key = st.secrets["GOOGLE_API_KEY"]
+    genai.configure(api_key=api_key)
+except Exception as e:
+    st.error("⚠️ API Anahtarı hatası! Lütfen Streamlit Secrets ayarlarında 'GOOGLE_API_KEY' olduğundan emin olun.")
     st.stop()
 
 # --- YARDIMCI FONKSİYONLAR ---
@@ -31,17 +31,17 @@ def read_docx(file):
     return text
 
 def image_to_text(image_file):
-    client = genai.Client(api_key=API_KEY)
+    # Görsel okuma için model tanımlama
+    model = genai.GenerativeModel('gemini-1.5-flash')
     img = Image.open(image_file)
-    prompt = "Bu bir iş ilanı. Metni, başlıkları ve gereklilikleri olduğu gibi çıkar."
-    response = client.models.generate_content(
-        model='gemini-1.5-flash',
-        contents=[prompt, img]
-    )
+    prompt = "Bu bir iş ilanı görselidir. Metni, başlıkları ve gereklilikleri olduğu gibi metne dök."
+    
+    response = model.generate_content([prompt, img])
     return response.text
 
 def get_full_analysis(cv_text, job_description):
-    client = genai.Client(api_key=API_KEY)
+    # Metin analizi için model tanımlama
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
     prompt = f'''
     Sen Kıdemli bir Teknik İşe Alım Yöneticisisin ve aynı zamanda o pozisyonda çalışan bir uzmansın.
@@ -81,10 +81,7 @@ def get_full_analysis(cv_text, job_description):
     (Aday gözüyle. Kısa, samimi, değer odaklı. Max 150 kelime.)
     '''
     
-    response = client.models.generate_content(
-        model='gemini-1.5-flash',
-        contents=prompt
-    )
+    response = model.generate_content(prompt)
     return response.text
 
 # --- SIDEBAR (YAN MENÜ) ---
