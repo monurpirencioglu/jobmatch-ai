@@ -10,11 +10,11 @@ st.set_page_config(page_title="JobMatch Pro", page_icon="💼", layout="wide")
 
 # --- GÜVENLİK VE API KURULUMU ---
 try:
-    # Secrets'tan anahtarı al (Adını GOOGLE_API_KEY olarak eşitledik)
+    # Secrets'tan anahtarı alıyoruz
     api_key = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=api_key)
 except Exception as e:
-    st.error("⚠️ API Anahtarı hatası! Lütfen Streamlit Secrets ayarlarında 'GOOGLE_API_KEY' olduğundan emin olun.")
+    st.error("⚠️ API Anahtarı bulunamadı! Lütfen Streamlit Cloud üzerinden 'Settings > Secrets' ayarlarını yapın.")
     st.stop()
 
 # --- YARDIMCI FONKSİYONLAR ---
@@ -36,6 +36,7 @@ def image_to_text(image_file):
     img = Image.open(image_file)
     prompt = "Bu bir iş ilanı görselidir. Metni, başlıkları ve gereklilikleri olduğu gibi metne dök."
     
+    # Multimodal input (metin + resim)
     response = model.generate_content([prompt, img])
     return response.text
 
