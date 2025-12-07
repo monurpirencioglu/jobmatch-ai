@@ -10,7 +10,7 @@ st.set_page_config(page_title="JobMatch Pro", page_icon="💼", layout="wide")
 
 # --- GÜVENLİK VE API KURULUMU ---
 try:
-    # Secrets'tan anahtarı alıyoruz
+    # Secrets'tan anahtarı al
     api_key = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=api_key)
 except Exception as e:
@@ -31,22 +31,24 @@ def read_docx(file):
     return text
 
 def image_to_text(image_file):
-    # Görsel okuma için model tanımlama
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # MODEL DEĞİŞİKLİĞİ: Flash yerine Pro modelini kullanıyoruz (Daha kararlı)
+    model = genai.GenerativeModel('gemini-1.5-pro')
     img = Image.open(image_file)
     prompt = "Bu bir iş ilanı görselidir. Metni, başlıkları ve gereklilikleri olduğu gibi metne dök."
     
-    # Multimodal input (metin + resim)
-    response = model.generate_content([prompt, img])
-    return response.text
+    # Multimodal input
+    try:
+        response = model.generate_content([prompt, img])
+        return response.text
+    except Exception as e:
+        return f"Hata: {e}"
 
 def get_full_analysis(cv_text, job_description):
-    # Metin analizi için model tanımlama
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # MODEL DEĞİŞİKLİĞİ: Flash yerine Pro modelini kullanıyoruz
+    model = genai.GenerativeModel('gemini-1.5-pro')
     
     prompt = f'''
-    Sen Kıdemli bir Teknik İşe Alım Yöneticisisin ve aynı zamanda o pozisyonda çalışan bir uzmansın.
-    Bugünün tarihi 2025 sonlarıdır. CV'deki 2024-2025 deneyimleri GERÇEKTİR.
+    Sen Kıdemli bir Teknik İşe Alım Yöneticisisin.
     
     GÖREV: Aşağıdaki CV ve İlan için 3 BÖLÜMLÜK detaylı analiz yap.
     Bölümlerin arasına SADECE "|||" işaretini koy.
@@ -59,105 +61,96 @@ def get_full_analysis(cv_text, job_description):
     ### 🎯 Uyum Skoru
     (100 üzerinden puan ve özet)
     ### ⚙️ Teknik Uyumlar
-    (Maddeler halinde, başına ⚙️ koy)
+    (Maddeler halinde)
     ### 🧠 Sosyal Yetkinlikler
-    (Maddeler halinde, başına ✅ koy)
+    (Maddeler halinde)
     ### ❌ Kritik Eksikler
     (Net ve yapıcı dille yaz)
 
     |||
 
-    --- BÖLÜM 2: İŞ RUTİNİ (ÇALIŞAN SİMÜLASYONU) ---
-    (İK dili kullanma. O işi yapan uzman gibi konuş.)
+    --- BÖLÜM 2: İŞ RUTİNİ SİMÜLASYONU ---
+    (O işi yapan uzman gibi konuş.)
     ### 🔄 Günlük Operasyonel Rutin
-    (Teknik görevler - 3 madde)
+    (3 madde)
     ### 📅 Haftalık Kritik Döngüler
-    (Sprint, raporlama vb. - 2 madde)
-    ### 💡 Kariyer Koçu Soruları
-    (Adayın kendine sorması gereken 3 zorlayıcı soru)
+    (2 madde)
+    ### 💡 Mülakat Soruları
+    (Adayın kendine sorması gereken 3 soru)
 
     |||
 
     --- BÖLÜM 3: ÖN YAZI ---
-    (Aday gözüyle. Kısa, samimi, değer odaklı. Max 150 kelime.)
+    (Kısa, samimi, değer odaklı. Max 150 kelime.)
     '''
     
-    response = model.generate_content(prompt)
-    return response.text
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"Bir hata oluştu: {e}"
 
-# --- SIDEBAR (YAN MENÜ) ---
+# --- SIDEBAR ---
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/3067/3067260.png", width=60)
     st.title("JobMatch Pro")
-    st.caption("Developed by Mehmet Onur Pirencioğlu")
+    st.info("💡 **Nasıl Kullanılır?**\n1. CV'nizi yükleyin.\n2. İlanı girin.\n3. Analizi Başlatın.")
     st.markdown("---")
-    st.info("💡 **Nasıl Kullanılır?**\n1. CV'nizi yükleyin.\n2. İlanı (Metin veya Resim) girin.\n3. Arkanıza yaslanın.")
-    st.markdown("---")
-    st.markdown("🔒 *Verileriniz işlendikten sonra silinir.*")
+    st.caption("Model: Gemini 1.5 Pro")
 
 # --- ANA EKRAN ---
-st.title("🚀 Kariyer Analiz ve Simülasyon Aracı")
-st.markdown("Yapay Zeka ile CV'nizi ve hayalinizdeki işi saniyeler içinde analiz edin.")
+st.title("🚀 Kariyer Analiz Aracı")
+st.markdown("Yapay Zeka (Gemini 1.5 Pro) ile CV analizi.")
 
-# --- GİRİŞ ALANLARI ---
 col1, col2 = st.columns(2)
 
 # SOL: CV
 with col1:
     st.subheader("1. Aday CV")
-    uploaded_file = st.file_uploader("CV Dosyası (PDF / Word)", type=["pdf", "docx"])
+    uploaded_file = st.file_uploader("CV Yükle", type=["pdf", "docx"])
     cv_text = ""
     if uploaded_file:
-        try:
-            if uploaded_file.type == "application/pdf":
-                cv_text = read_pdf(uploaded_file)
-            else:
-                cv_text = read_docx(uploaded_file)
-            st.success(f"✅ {uploaded_file.name} Yüklendi")
-        except:
-            st.error("Dosya okunamadı.")
+        if uploaded_file.type == "application/pdf":
+            cv_text = read_pdf(uploaded_file)
+        else:
+            cv_text = read_docx(uploaded_file)
+        st.success(f"✅ {uploaded_file.name} Yüklendi")
 
 # SAĞ: İLAN
 with col2:
     st.subheader("2. İlan Detayları")
-    tab_text, tab_image = st.tabs(["📝 Metin Yapıştır", "📸 Ekran Görüntüsü"])
+    tab_text, tab_image = st.tabs(["📝 Metin", "📸 Resim"])
     job_description = ""
     
     with tab_text:
-        val = st.text_area("İlan Metnini Buraya Yapıştırın", height=150)
+        val = st.text_area("İlan Metni", height=150)
         if val: job_description = val
     with tab_image:
-        img = st.file_uploader("İlan Resmi Yükle", type=["png", "jpg", "jpeg"])
+        img = st.file_uploader("İlan Resmi", type=["png", "jpg", "jpeg"])
         if img:
-            with st.spinner("Resimdeki metin okunuyor..."):
-                try:
-                    job_description = image_to_text(img)
-                    st.success("✅ Resim başarıyla okundu")
-                except Exception as e:
+            with st.spinner("Resim okunuyor..."):
+                job_description = image_to_text(img)
+                if "Hata" not in job_description:
+                    st.success("✅ Resim okundu")
+                else:
                     st.error("Resim okunamadı.")
 
-# BUTON VE İŞLEM
-analyze_btn = st.button("✨ Analizi Başlat", type="primary", use_container_width=True)
-
-if analyze_btn:
+# BUTON
+if st.button("✨ Analizi Başlat", type="primary", use_container_width=True):
     if not cv_text or not job_description:
-        st.warning("⚠️ Lütfen hem CV yükleyin hem de İlan girişi yapın.")
+        st.warning("⚠️ Lütfen CV ve İlan girin.")
     else:
-        with st.spinner("Yapay Zeka (Gemini) sizin için çalışıyor..."):
-            try:
-                full_response = get_full_analysis(cv_text, job_description)
-                
+        with st.spinner("Gemini 1.5 Pro analiz ediyor... (Bu işlem 10-15 saniye sürebilir)"):
+            full_response = get_full_analysis(cv_text, job_description)
+            
+            if "Bir hata oluştu" in full_response:
+                st.error(full_response)
+            else:
                 parts = full_response.split("|||")
-                p1 = parts[0] if len(parts) > 0 else "Analiz oluşturulamadı."
-                p2 = parts[1] if len(parts) > 1 else "Rutin verisi alınamadı."
-                p3 = parts[2] if len(parts) > 2 else "Ön yazı oluşturulamadı."
-
-                t1, t2, t3 = st.tabs(["📊 Uyumluluk Raporu", "📅 İş Rutini Simülasyonu", "✍️ Akıllı Ön Yazı"])
-                
-                with t1: st.markdown(p1)
-                with t2: st.markdown(p2)
-                with t3: st.markdown(p3)
-
-            except Exception as e:
-                st.error(f"Bir hata oluştu: {e}")
-                st.info("Lütfen biraz bekleyip tekrar deneyin.")
+                # Hata toleransı: Eğer AI bölmeyi unutursa hepsini ilk tab'a bas
+                if len(parts) < 3:
+                    st.markdown(full_response)
+                else:
+                    t1, t2, t3 = st.tabs(["📊 Analiz", "📅 Rutin", "✍️ Ön Yazı"])
+                    with t1: st.markdown(parts[0])
+                    with t2: st.markdown(parts[1])
+                    with t3: st.markdown(parts[2])
